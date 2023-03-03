@@ -13,14 +13,16 @@ class Planner:
 
         # Setup point mass model
         pm_radius = 0.32  # point mass radii
+        pm_rect_x = 0.32
+        pm_rect_y = 0.16
         pm_dim = 2 # x, y dimensions
         dlim = {0: [-1.5, 1.5], 1: [-1.5, 1.5]}  # pos/vel limits
-        point_mass = optas.TaskModel('point_mass', pm_dim, time_derivs=[0, 1], dlim=dlim)
-        pm_name = point_mass.get_name()
+        rectangle = optas.TaskModel('rectangle', pm_dim, time_derivs=[0, 1], dlim=dlim)
+        pm_name = rectangle.get_name()
 
         # Setup optimization builder
         T = 60 # number of time steps
-        builder = optas.OptimizationBuilder(T, tasks=point_mass, derivs_align=True)
+        builder = optas.OptimizationBuilder(T, tasks=rectangle, derivs_align=True)
 
         # Add parameters
         init = builder.add_parameter('init', 2)  # initial point mass position
@@ -70,10 +72,12 @@ class Planner:
         self.dt = dt
         self.pm_name = pm_name
         self.pm_radius = pm_radius
+        self.pm_rect_x = pm_rect_x
+        self.pm_rect_y = pm_rect_y
         self.obs = obs
         self.obs_rad = obs_rad
         self.duration = float(T-1)*dt  # task duration
-        self.point_mass = point_mass
+        self.rectangle = rectangle
 
     def plan(self, init, goal):
         self.solver.reset_parameters({'init': init, 'goal': goal})
@@ -92,14 +96,19 @@ class Controller:
 
         # Setup point mass model
         pm_radius = 0.32  # point mass radii
-        pm_dim = 2 # x, y dimensions
+
+        # Setup rectangle model
+        pm_width = 0.32  # half width of rectangle
+        pm_height = 0.16  # height of rectangle
+        pm_dim = 2  # x, y dimensions
         dlim = {0: [-1.5, 1.5], 1: [-1.5, 1.5]}  # pos/vel limits
-        point_mass = optas.TaskModel('point_mass', pm_dim, time_derivs=[0, 1], dlim=dlim)
-        pm_name = point_mass.get_name()
+        rectangle = optas.TaskModel('rectangle', pm_dim, time_derivs=[0, 1], dlim=dlim)
+        rectangle.set_bounds([-pm_width, -pm_height], [pm_width, pm_height])
+        pm_name = rectangle.get_name()
 
         # Setup optimization builder
         T = 20 # number of time steps
-        builder = optas.OptimizationBuilder(T, tasks=point_mass, derivs_align=True)
+        builder = optas.OptimizationBuilder(T, tasks=rectangle, derivs_align=True)
 
         # Add parameters
         curr = builder.add_parameter('curr', 2)  # current point mass position
@@ -145,7 +154,7 @@ class Controller:
         self.obs = obs
         self.obs_rad = obs_rad
         self.duration = float(T-1)*dt  # task duration
-        self.point_mass = point_mass
+        self.rectangle = rectangle
         self.solution = None
 
     def next_state(self, curr, dcurr, goal, obs):
@@ -170,7 +179,9 @@ class Animate:
         # Setup planner
         self.planner = Planner()
         self.init = [-1.5, -1.5]
+        self.rectangle_init = [self.init[0] - self.planner.pm_rect_x, self.init[1] - self.planner.pm_rect_y]
         self.goal = [1, 1]
+        self.rectangle_goal = [self.goal[0] - self.planner.pm_rect_x, self.goal[1] - self.planner.pm_rect_y]
         self.plan_x, self.plan_dx = self.planner.plan(self.init, self.goal)
 
         # Setup current state and controller
@@ -191,15 +202,15 @@ class Animate:
 
         self.mpc_line, = self.ax['birdseye'].plot([], [], '-x', color='yellow', label='mpc')
         self.ax['birdseye'].plot(self.X[0, :], self.X[1, :], '-kx', label='plan')
-        self.ax['birdseye'].add_patch(plt.Circle(self.init, radius=self.planner.pm_radius, color='green', alpha=0.5))
-        self.ax['birdseye'].add_patch(plt.Circle(self.goal, radius=self.planner.pm_radius, color='red', alpha=0.5))
+        self.ax['birdseye'].add_patch(plt.Rectangle(self.rectangle_init, width=2*self.planner.pm_rect_x, height=2*self.planner.pm_rect_y, color='green', alpha=0.5))
+        self.ax['birdseye'].add_patch(plt.Rectangle(self.rectangle_goal, width=2*self.planner.pm_rect_x, height=2*self.planner.pm_rect_y, color='red', alpha=0.5))
         self.dt = self.planner.dt
         self.obs_pos = optas.np.array(self.planner.obs)
-        self.obs_visual = plt.Circle(self.obs_pos, radius=self.planner.obs_rad, color='black')
+        self.obs_visual = plt.Rectangle(xy=self.obs_pos, width=2*self.planner.pm_rect_x, height=2*self.planner.pm_rect_y, angle=15.0, color='black') #Circle(self.obs_pos, radius=self.planner.obs_rad, color='black') # 
         self.ax['birdseye'].add_patch(self.obs_visual)
         self.ax['birdseye'].set_aspect('equal')
-        self.ax['birdseye'].set_xlim(*self.planner.point_mass.dlim[0])
-        self.ax['birdseye'].set_ylim(*self.planner.point_mass.dlim[0])
+        self.ax['birdseye'].set_xlim(*self.planner.rectangle.dlim[0])
+        self.ax['birdseye'].set_ylim(*self.planner.rectangle.dlim[0])
         self.ax['birdseye'].set_title('Birdseye View')
         self.ax['birdseye'].set_xlabel('x')
         self.ax['birdseye'].set_ylabel('y')
@@ -211,20 +222,20 @@ class Animate:
         self.ax['position'].set_ylabel('Position')
         self.ax['position'].set_xlim(0, self.planner.duration)
 
-        axlim = max([abs(l) for l in self.planner.point_mass.dlim[0]])
+        axlim = max([abs(l) for l in self.planner.rectangle.dlim[0]])
         self.ax['position'].set_ylim(-axlim, axlim)
 
         self.ax['velocity'].plot(self.t, self.dX[0,:], '-rx', label='plan-dx')
         self.ax['velocity'].plot(self.t, self.dX[1,:], '-bx', label='plan-dy')
         self.pm_vel_curr_x, = self.ax['velocity'].plot([], [], 'or', label='curr-dx')
         self.pm_vel_curr_y, = self.ax['velocity'].plot([], [], 'ob', label='curr-dy')
-        self.ax['velocity'].axhline(self.planner.point_mass.dlim[1][0], color='red', linestyle='--')
-        self.ax['velocity'].axhline(self.planner.point_mass.dlim[1][1], color='red', linestyle='--', label='limit')
+        self.ax['velocity'].axhline(self.planner.rectangle.dlim[1][0], color='red', linestyle='--')
+        self.ax['velocity'].axhline(self.planner.rectangle.dlim[1][1], color='red', linestyle='--', label='limit')
         self.ax['velocity'].set_ylabel('Velocity')
         self.ax['velocity'].set_xlabel('Time')
 
         self.ax['velocity'].set_xlim(0, self.planner.duration)
-        axlim = max([abs(1.5*l) for l in self.planner.point_mass.dlim[1]])
+        axlim = max([abs(1.5*l) for l in self.planner.rectangle.dlim[1]])
         self.ax['velocity'].set_ylim(-axlim, axlim)
 
         for a in self.ax.values():
@@ -235,7 +246,7 @@ class Animate:
         if not animate: return
         self.pos_line = self.ax['position'].axvline(color='blue', alpha=0.5)
         self.vel_line = self.ax['velocity'].axvline(color='blue', alpha=0.5)
-        self.pm_visual = plt.Circle(self.init, radius=self.planner.pm_radius, color='blue', alpha=0.5)
+        self.pm_visual = plt.Rectangle(xy=self.rectangle_init, width=2*self.planner.pm_rect_x, height=2*self.planner.pm_rect_y, angle=0.0, color='black')  # Circle(self.init, radius=self.planner.pm_radius, color='blue', alpha=0.5)
         self.frames = list(range(self.planner.T))
         self.ani = FuncAnimation(self.fig, self.update, frames=self.frames, blit=True)
 
@@ -266,7 +277,8 @@ class Animate:
         ox = temp*optas.np.sin(alpha)
         oy = temp*optas.np.cos(alpha) + temp
         obs = (ox, oy)
-        self.obs_visual.set_center(obs)
+        obs_rect = (ox - self.planner.pm_rect_x, oy - self.planner.pm_rect_y)
+        self.obs_visual.set_xy(obs_rect)
 
         obs = []
         for i in range(self.controller.T):
@@ -299,8 +311,10 @@ class Animate:
 
         self.mpc_line.set_xdata(mpc_plan[0,:])
         self.mpc_line.set_ydata(mpc_plan[1,:])
+        mpc_next = mpc_plan[:, 0] - (self.planner.pm_rect_x, self.planner.pm_rect_y)
+        self.pm_visual.set_xy(mpc_next)
 
-        self.pm_visual.set_center(mpc_plan[:, 0])
+        #self.obs_visual.set_xy(mpc_rect)
         self.ax['birdseye'].add_patch(self.pm_visual)
 
         return (self.pm_visual, self.pos_line, self.vel_line, self.obs_visual, self.mpc_line, self.pm_pos_curr_x, self.pm_pos_curr_y, self.pm_vel_curr_x, self.pm_vel_curr_y)

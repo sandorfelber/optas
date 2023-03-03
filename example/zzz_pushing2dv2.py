@@ -3,6 +3,9 @@ import os
 import sys
 import math
 import pathlib
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
 
 # PyBullet
 import pybullet_api
@@ -10,7 +13,6 @@ import pybullet_api
 # OpTaS
 import optas
 from optas.spatialmath import *
-
 
 def yaw2quat(angle):
     return Quaternion.fromrpy(tr2eul(rotz(angle))).getquat()
@@ -273,9 +275,9 @@ class IK:
         solution = self.solver.solve()
         return solution[f'{self.kuka_name}/dq'].toarray().flatten()
 
-def main():
 
-    # Setup PyBullet
+def main():
+# Setup PyBullet
     qc = -optas.np.deg2rad([0, 30, 0, -90, 0, 60, 0])
     q = qc.copy()
     eff_ball_radius = 0.015
@@ -289,11 +291,11 @@ def main():
     )
     kuka = pybullet_api.KukaLWR()
     kuka.reset(qc)
-    GxS0 = 0.4
-    GyS0 = 0.065
+    GxS0 = 0.4 # originally: 0.4
+    GyS0 = -0.5 # originally: 0.065
     GthetaS0 = 0.
     box_base_position = [GxS0, GyS0, 0.06]
-    Lx = 0.2
+    Lx = 0.4
     Ly = 0.1
     box_half_extents = [0.5*Lx, 0.5*Ly, 0.06]
     box = pybullet_api.DynamicBox(
@@ -326,6 +328,10 @@ def main():
     pb.start()
     start_time = pybullet_api.time.time()
 
+    # Start pybullet
+    pb.start()
+    start_time = pybullet_api.time.time()
+
     # Move robot to start position
     Tmax_start = 6.
     pginit = optas.np.array([0.4, 0., 0.06])
@@ -338,21 +344,33 @@ def main():
         kuka.cmd(q)
         pybullet_api.time.sleep(dt)
 
-    # Plan a trajectory
-    GpS0 = [GxS0, GyS0]
-    GpST = [GxST, GyST]
-    plan = to_mpcc_planner.plan(GpS0, GthetaS0, GpST, GthetaST)
+    ## Main loop
+    #p = pginit.copy()
+    #start_time = pybullet_api.time.time()
 
-    # Main loop
-    p = pginit.copy()
-    start_time = pybullet_api.time.time()
-    while True:
+    # initialize plot and animation variables
+    fig, ax = plt.subplots()
+    line, = ax.plot([], [])
+    box_patch = plt.Rectangle((0, 0), 0.1, 0.1, fc='blue')
+    ax.add_patch(box_patch)
+
+    # define animation update function
+    def update_ani(frame):
+        p = pginit.copy()
+        qc = -optas.np.deg2rad([0, 30, 0, -90, 0, 60, 0])
+        q = qc.copy()
         t = pybullet_api.time.time() - start_time
         if t > to_mpcc_planner.Tmax:
-            break
+            ani.event_source.stop()
         boxpose = box.get_pose()
         dqgoal = ik.compute_target_velocity(q, p)
         q += dt*dqgoal
+        # Plan a trajectory
+        GpS0 = [GxS0, GyS0]
+        GpST = [GxST, GyST]
+        plan = to_mpcc_planner.plan(GpS0, GthetaS0, GpST, GthetaST)
+
+        t = pybullet_api.time.time() - start_time
         state = plan(t)
         SpC = optas.vertcat(0.5*Ly, 0.5*Ly*optas.tan(state[3]))
         GpC = state[:2] + rot2(state[2] + state[3] - 0.5*optas.np.pi)@SpC
@@ -360,7 +378,6 @@ def main():
         GpC -= dr*eff_ball_radius  # accounts for end effector ball radius
         p = GpC.toarray().flatten().tolist() + [0.06]
         box_position = state[:2].tolist() + [0.06]
-        print("YYYYYYYYYYYYYYYYYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", yaw2quat(state[2]).toarray().flatten())
         plan_box.reset(
             base_position=box_position,
             base_orientation=yaw2quat(state[2]).toarray().flatten(),
@@ -368,11 +385,27 @@ def main():
         kuka.cmd(q)
         pybullet_api.time.sleep(dt)
 
+        # update box position in animation
+        box_patch.set_xy((box_position[0], box_position[1]))
+
+        # update line data in animation
+        xdata, ydata = line.get_data()
+        line.set_data(np.append(xdata, state[0]), np.append(ydata, state[1]))
+
+        # set axis limits to keep box in view
+        ax.set_xlim([state[0] - 1, state[0] + 1])
+        ax.set_ylim([state[1] - 1, state[1] + 1])
+
+    # start animation
+    start_time = pybullet_api.time.time()
+    print("````````````````````````````````````````````````````````````````````````````\
+        ///////////////////////////////////////////////////////////////////////////////ran so many times")
+    ani = animation.FuncAnimation(fig, update_ani, blit=False)
+    plt.show()
+
     pb.stop()
     pb.close()
 
     return 0
-
-
 if __name__ == '__main__':
     sys.exit(main())

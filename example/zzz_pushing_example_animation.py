@@ -1,8 +1,14 @@
+from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt
+
 # Python standard lib
 import os
 import sys
 import math
 import pathlib
+import numpy as np
+import scipy.integrate as integrate
+
 
 # PyBullet
 import pybullet_api
@@ -11,22 +17,8 @@ import pybullet_api
 import optas
 from optas.spatialmath import *
 
-
 def yaw2quat(angle):
     return Quaternion.fromrpy(tr2eul(rotz(angle))).getquat()
-
-
-######################################
-# Task space planner
-#
-# This is an implementation of [1].
-#
-# References
-#
-#   1. J. Moura, T. Stouraitis, and S. Vijayakumar, Non-prehensile
-#      Planar Manipulation via Trajectory Optimization with
-#      Complementarity Constraints, ICRA, 2022.
-#
 
 class TOMPCCPlanner:
 
@@ -192,12 +184,6 @@ class TOMPCCPlanner:
         slider_plan = self.solver.interpolate(slider_traj, self.Tmax)
         return slider_plan
 
-
-######################################
-# Joint space IK
-#
-
-
 class IK:
 
     def __init__(self, dt, thresh_angle):
@@ -273,106 +259,126 @@ class IK:
         solution = self.solver.solve()
         return solution[f'{self.kuka_name}/dq'].toarray().flatten()
 
-def main():
-
-    # Setup PyBullet
-    qc = -optas.np.deg2rad([0, 30, 0, -90, 0, 60, 0])
-    q = qc.copy()
-    eff_ball_radius = 0.015
-    hz = 50
-    dt = 1.0/float(hz)
-    pb = pybullet_api.PyBullet(
-        dt,
-        camera_distance=0.5,
-        camera_target_position=[0.3, 0.2, 0.],
-        camera_yaw=135,
-    )
-    kuka = pybullet_api.KukaLWR()
-    kuka.reset(qc)
-    GxS0 = 0.4
-    GyS0 = 0.065
-    GthetaS0 = 0.
-    box_base_position = [GxS0, GyS0, 0.06]
-    Lx = 0.2
-    Ly = 0.1
-    box_half_extents = [0.5*Lx, 0.5*Ly, 0.06]
-    box = pybullet_api.DynamicBox(
-        base_position=box_base_position,
-        half_extents=box_half_extents,
-    )
-    GxST = 0.45
-    GyST = 0.3
-    GthetaST = 0.1*optas.np.pi
-    pybullet_api.VisualBox(
-        base_position=[GxST, GyST, 0.06],
-        base_orientation=yaw2quat(GthetaST).toarray().flatten(),
-        half_extents=box_half_extents,
-        rgba_color=[1., 0., 0., 0.5],
-    )
-    plan_box = pybullet_api.VisualBox(
-        base_position=[GxS0, GyS0, 0.06],
-        half_extents=box_half_extents,
-        rgba_color=[0., 0., 1., 0.5],
-    )
-
-    # Setup TO MPCC planner
-    to_mpcc_planner = TOMPCCPlanner(0.1, Lx, Ly)
-
-    # Setup IK
-    thresh_angle = optas.np.deg2rad(30.)
-    ik = IK(dt, thresh_angle)
-
-    # Start pybullet
-    pb.start()
-    start_time = pybullet_api.time.time()
-
-    # Move robot to start position
-    Tmax_start = 6.
-    pginit = optas.np.array([0.4, 0., 0.06])
-    while True:
-        t = pybullet_api.time.time() - start_time
-        if t > Tmax_start:
-            break
-        dqgoal = ik.compute_target_velocity(q, pginit)
-        q += dt*dqgoal
-        kuka.cmd(q)
-        pybullet_api.time.sleep(dt)
-
-    # Plan a trajectory
-    GpS0 = [GxS0, GyS0]
-    GpST = [GxST, GyST]
-    plan = to_mpcc_planner.plan(GpS0, GthetaS0, GpST, GthetaST)
-
-    # Main loop
-    p = pginit.copy()
-    start_time = pybullet_api.time.time()
-    while True:
-        t = pybullet_api.time.time() - start_time
-        if t > to_mpcc_planner.Tmax:
-            break
-        boxpose = box.get_pose()
-        dqgoal = ik.compute_target_velocity(q, p)
-        q += dt*dqgoal
-        state = plan(t)
-        SpC = optas.vertcat(0.5*Ly, 0.5*Ly*optas.tan(state[3]))
-        GpC = state[:2] + rot2(state[2] + state[3] - 0.5*optas.np.pi)@SpC
-        dr = rot2(state[2] + state[3] - 0.5*optas.np.pi) @ optas.vertcat(optas.cos(-0.5*optas.np.pi), optas.sin(-0.5*optas.np.pi))
-        GpC -= dr*eff_ball_radius  # accounts for end effector ball radius
-        p = GpC.toarray().flatten().tolist() + [0.06]
-        box_position = state[:2].tolist() + [0.06]
-        print("YYYYYYYYYYYYYYYYYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", yaw2quat(state[2]).toarray().flatten())
-        plan_box.reset(
-            base_position=box_position,
-            base_orientation=yaw2quat(state[2]).toarray().flatten(),
-        )
-        kuka.cmd(q)
-        pybullet_api.time.sleep(dt)
-
-    pb.stop()
-    pb.close()
-
-    return 0
+class Animate:
+    
+    def __init__(self, planner, x, u, dt):
+        self.planner = planner
+        self.dt = dt
+        
+        # Setup figure
+        self.fig, self.ax = plt.subplots(1, 1, figsize=(6, 6))
+        self.ax.set_aspect('equal')
+        self.ax.set_xlim([-2, 2])
+        self.ax.set_ylim([-2, 2])
+        self.ax.set_xlabel('X')
+        self.ax.set_ylabel('Y')
+        self.ax.set_title('Pushed Box')
+        
+        # Draw the box and the pusher
+        self.box = plt.Rectangle((x[0]-0.1, x[1]-0.1), 0.2, 0.2, color='red')
+        self.pusher = plt.Circle((0, 0), self.planner.radius, color='blue')
+        self.ax.add_patch(self.box)
+        self.ax.add_patch(self.pusher)
+        
+        # Initialize the animation
+        self.frames = int(planner.duration / dt)
+        self.anim = FuncAnimation(self.fig, self.update, frames=self.frames, interval=dt*1000, blit=True, repeat=False)
+        self.current_frame = 0
+        
+        # Store the trajectory
+        self.trajectory = self.planner.plan(x, u, dt)
+    
+    def update(self, i):
+        # Update the position of the box and the pusher
+        x, y = self.trajectory[i]
+        self.box.set_xy((x-0.1, y-0.1))
+        self.pusher.set_center((0, 0))
+        
+        # Draw the trajectory up to this point
+        if i > 0:
+            self.ax.plot(self.trajectory[:i, 0], self.trajectory[:i, 1], color='black', linestyle='dashed')
+        
+        # Update the current frame
+        self.current_frame = i
+        
+        return self.box, self.pusher
+    
+    def show(self):
+        plt.show()
 
 
-if __name__ == '__main__':
-    sys.exit(main())
+qc = -optas.np.deg2rad([0, 30, 0, -90, 0, 60, 0])
+q = qc.copy()
+eff_ball_radius = 0.015
+hz = 50
+dt = 1.0/float(hz)
+pb = pybullet_api.PyBullet(
+    dt,
+    camera_distance=0.5,
+    camera_target_position=[0.3, 0.2, 0.],
+    camera_yaw=135,
+)
+kuka = pybullet_api.KukaLWR()
+kuka.reset(qc)
+GxS0 = 0.4
+GyS0 = 0.065
+GthetaS0 = 0.
+box_base_position = [GxS0, GyS0, 0.06]
+Lx = 0.2
+Ly = 0.1
+box_half_extents = [0.5*Lx, 0.5*Ly, 0.06]
+box = pybullet_api.DynamicBox(
+    base_position=box_base_position,
+    half_extents=box_half_extents,
+)
+GxST = 0.45
+GyST = 0.3
+GthetaST = 0.1*optas.np.pi
+pybullet_api.VisualBox(
+    base_position=[GxST, GyST, 0.06],
+    base_orientation=yaw2quat(GthetaST).toarray().flatten(),
+    half_extents=box_half_extents,
+    rgba_color=[1., 0., 0., 0.5],
+)
+plan_box = pybullet_api.VisualBox(
+    base_position=[GxS0, GyS0, 0.06],
+    half_extents=box_half_extents,
+    rgba_color=[0., 0., 1., 0.5],
+)
+
+planner = TOMPCCPlanner(0.1, Lx, Ly)
+x = [0, 0, 0, 0]  # x = [x, y, theta, phi]
+u = [1, 0.5]  # u = [v, w]
+
+thresh_angle = optas.np.deg2rad(30.)
+ik = IK(dt, thresh_angle)
+
+pb.start()
+start_time = pybullet_api.time.time()
+
+# Move robot to start position
+Tmax_start = 6.
+pginit = optas.np.array([0.4, 0., 0.06])
+while True:
+    t = pybullet_api.time.time() - start_time
+    if t > Tmax_start:
+        break
+    dqgoal = ik.compute_target_velocity(q, pginit)
+    q += dt*dqgoal
+    kuka.cmd(q)
+    pybullet_api.time.sleep(dt)
+
+controller = PointMassController()
+t = 0
+
+animate = Animate(planner, x[:2], u, dt)
+
+while t < planner.duration:
+    x, u = IK.get_control_inputs(x, u, planner, dt)
+    t += dt
+    
+    animate.anim.event_source.stop()
+    animate.anim = FuncAnimation(animate.fig, animate.update, frames=animate.frames, interval=dt*1000, blit=True, repeat=False)
+    animate.anim.event_source.start()
+    
+animate.show()

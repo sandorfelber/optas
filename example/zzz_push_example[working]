@@ -1,0 +1,49 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
+fig, ax = plt.subplots()
+
+# Setting up the robotic arm
+L1, L2 = 2, 3
+theta1, theta2 = np.pi/4, np.pi/4
+
+# Defining the vertices of the rectangle
+rect_x = np.array([0, 1, 1, 0])
+rect_y = np.array([0, 0, 2, 2])
+rect = np.array([rect_x, rect_y])
+
+# Defining the initial position of the rectangle
+x0, y0 = 0, 0
+
+# Defining the function to update the position of the rectangle
+def update(frame):
+    global theta1, theta2, x0, y0
+
+    # Updating the angles of the robotic arm
+    theta1 += 0.05
+    theta2 += 0.03
+
+    # Calculating the new position of the end effector
+    x1 = L1 * np.cos(theta1)
+    y1 = L1 * np.sin(theta1)
+    x2 = x1 + L2 * np.cos(theta1 + theta2)
+    y2 = y1 + L2 * np.sin(theta1 + theta2)
+
+    # Updating the position of the rectangle
+    x0 = x2 - 0.5
+    y0 = y2 - 1
+    rect[0] = rect_x + x0
+    rect[1] = rect_y + y0
+
+    # Clearing the plot and drawing the rectangle at the updated position
+    ax.clear()
+    ax.set_xlim([-5, 5])
+    ax.set_ylim([-5, 5])
+    ax.add_patch(plt.Rectangle((rect[0,0], rect[1,0]), 1, 2, color='red'))
+
+# Creating the animation
+ani = FuncAnimation(fig, update, frames=np.arange(0, 100), interval=50)
+
+# Displaying the animation
+plt.show()

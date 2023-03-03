@@ -10,6 +10,8 @@ import pybullet_api
 # OpTaS
 import optas
 from optas.spatialmath import *
+# Animation
+from matplotlib.animation import FuncAnimation
 
 
 def yaw2quat(angle):
@@ -273,6 +275,7 @@ class IK:
         solution = self.solver.solve()
         return solution[f'{self.kuka_name}/dq'].toarray().flatten()
 
+
 def main():
 
     # Setup PyBullet
@@ -360,7 +363,6 @@ def main():
         GpC -= dr*eff_ball_radius  # accounts for end effector ball radius
         p = GpC.toarray().flatten().tolist() + [0.06]
         box_position = state[:2].tolist() + [0.06]
-        print("YYYYYYYYYYYYYYYYYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", yaw2quat(state[2]).toarray().flatten())
         plan_box.reset(
             base_position=box_position,
             base_orientation=yaw2quat(state[2]).toarray().flatten(),
@@ -373,6 +375,99 @@ def main():
 
     return 0
 
+if __name__ == '__main__':
+    from sys import argv
+    animate = '--noanimate' not in argv
+    Animate(animate).show()
+    sys.exit(main())
+if __name__ == '__main__':
+    main()
+
+### Inserted code:
+class Animate:
+
+    def __init__(self, animate):
+
+        # Setup planner
+        self.planner = TOMPCCPlanner(0.1, 0.2, 0.1) #dt=0.1 Lx=0.2 Ly=0.1
+        self.init = [-1, -1]
+        self.goal = [1, 1]
+        self.plan_x, self.plan_dx = self.planner.plan(self.init, self.goal)
+
+        # Setup figure
+        self.t = optas.np.linspace(0, self.planner.duration, self.planner.T)
+        self.X = self.plan_x(self.t)
+        self.dX = self.plan_dx(self.t)
+
+        self.fig, self.ax = plt.subplot_mosaic([['birdseye', 'position'],
+                                                ['birdseye', 'velocity']],
+                                               layout='constrained',
+                                               figsize=(10, 5),
+        )
+
+        self.ax['birdseye'].plot(self.X[0, :], self.X[1, :], '-kx', label='plan')
+        self.ax['birdseye'].add_patch(plt.Circle(self.init, radius=self.planner.pm_radius, color='green', alpha=0.5))
+        self.ax['birdseye'].add_patch(plt.Circle(self.goal, radius=self.planner.pm_radius, color='red', alpha=0.5))
+        self.ax['birdseye'].add_patch(plt.Circle(self.planner.obs, radius=self.planner.obs_rad, color='black'))
+        self.ax['birdseye'].set_aspect('equal')
+        self.ax['birdseye'].set_xlim(*self.planner.point_mass.dlim[0])
+        self.ax['birdseye'].set_ylim(*self.planner.point_mass.dlim[0])
+        self.ax['birdseye'].set_title('Birdseye View')
+        self.ax['birdseye'].set_xlabel('x')
+        self.ax['birdseye'].set_ylabel('y')
+
+        self.ax['position'].plot(self.t, self.X[0,:], '-rx', label='plan-x')
+        self.ax['position'].plot(self.t, self.X[1,:], '-bx', label='plan-y')
+        self.ax['position'].set_ylabel('Position')
+        self.ax['position'].set_xlim(0, self.planner.duration)
+
+        axlim = max([abs(l) for l in self.planner.point_mass.dlim[0]])
+        self.ax['position'].set_ylim(-axlim, axlim)
+
+        self.ax['velocity'].plot(self.t, self.dX[0,:], '-rx', label='plan-dx')
+        self.ax['velocity'].plot(self.t, self.dX[1,:], '-bx', label='plan-dy')
+        self.ax['velocity'].axhline(self.planner.point_mass.dlim[1][0], color='red', linestyle='--')
+        self.ax['velocity'].axhline(self.planner.point_mass.dlim[1][1], color='red', linestyle='--', label='limit')
+        self.ax['velocity'].set_ylabel('Velocity')
+        self.ax['velocity'].set_xlabel('Time')
+
+        self.ax['velocity'].set_xlim(0, self.planner.duration)
+        axlim = max([abs(1.5*l) for l in self.planner.point_mass.dlim[1]])
+        self.ax['velocity'].set_ylim(-axlim, axlim)
+
+        for a in self.ax.values():
+            a.legend(ncol=3, loc='lower right')
+            a.grid()
+
+        # Animate
+        if not animate: return
+        self.pos_line = self.ax['position'].axvline(color='blue', alpha=0.5)
+        self.vel_line = self.ax['velocity'].axvline(color='blue', alpha=0.5)
+        self.pm_visual = plt.Circle(self.init, radius=self.planner.pm_radius, color='blue', alpha=0.5)
+        self.ani = FuncAnimation(self.fig, self.update, frames=self.t, blit=True)
+
+    def update(self, frame):
+
+        # Udpate position/velocity indicator line
+        self.pos_line.set_xdata([frame, frame])
+        self.vel_line.set_xdata([frame, frame])
+
+        # Update point mass
+        self.pm_visual.set_center(self.plan_x(frame))
+        self.ax['birdseye'].add_patch(self.pm_visual)
+
+        return (self.pm_visual, self.pos_line, self.vel_line)
+
+    @staticmethod
+    def show():
+        plt.show()
+
+def main():
+    from sys import argv
+    animate = '--noanimate' not in argv
+    Animate(animate).show()
 
 if __name__ == '__main__':
-    sys.exit(main())
+    main()
+
+################################################################

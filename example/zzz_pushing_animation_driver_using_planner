@@ -1,6 +1,9 @@
 import optas
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from matplotlib import animation
+
+writer = animation.FFMpegWriter(fps=30, codec='mpeg4')
 
 class Planner:
 
@@ -12,7 +15,9 @@ class Planner:
         obs_rad = 0.35  # obstacle radii
 
         # Setup point mass model
-        pm_radius = 0.32  # point mass radii
+        pm_radius = 0.64  # point mass radii
+        pm_rect_x = 0.32
+        pm_rect_y = 0.16
         pm_dim = 2 # x, y dimensions
         dlim = {0: [-1.5, 1.5], 1: [-1.5, 1.5]}  # pos/vel limits
         point_mass = optas.TaskModel('point_mass', pm_dim, time_derivs=[0, 1], dlim=dlim)
@@ -70,6 +75,8 @@ class Planner:
         self.dt = dt
         self.pm_name = pm_name
         self.pm_radius = pm_radius
+        self.pm_rect_x = pm_rect_x
+        self.pm_rect_y = pm_rect_y
         self.obs = obs
         self.obs_rad = obs_rad
         self.duration = float(T-1)*dt  # task duration
@@ -91,7 +98,7 @@ class Controller:
         obs_rad = 0.35  # obstacle radii
 
         # Setup point mass model
-        pm_radius = 0.32  # point mass radii
+        pm_radius = 0.64  # point mass radii
         pm_dim = 2 # x, y dimensions
         dlim = {0: [-1.5, 1.5], 1: [-1.5, 1.5]}  # pos/vel limits
         point_mass = optas.TaskModel('point_mass', pm_dim, time_derivs=[0, 1], dlim=dlim)
@@ -170,7 +177,9 @@ class Animate:
         # Setup planner
         self.planner = Planner()
         self.init = [-1.5, -1.5]
+        self.rectangle_init = [self.init[0] - self.planner.pm_rect_x, self.init[1] - self.planner.pm_rect_y]
         self.goal = [1, 1]
+        self.rectangle_goal = [self.goal[0] - self.planner.pm_rect_x, self.goal[1] - self.planner.pm_rect_y]
         self.plan_x, self.plan_dx = self.planner.plan(self.init, self.goal)
 
         # Setup current state and controller
@@ -191,11 +200,11 @@ class Animate:
 
         self.mpc_line, = self.ax['birdseye'].plot([], [], '-x', color='yellow', label='mpc')
         self.ax['birdseye'].plot(self.X[0, :], self.X[1, :], '-kx', label='plan')
-        self.ax['birdseye'].add_patch(plt.Circle(self.init, radius=self.planner.pm_radius, color='green', alpha=0.5))
-        self.ax['birdseye'].add_patch(plt.Circle(self.goal, radius=self.planner.pm_radius, color='red', alpha=0.5))
+        self.ax['birdseye'].add_patch(plt.Rectangle(self.rectangle_init, width=2*self.planner.pm_rect_x, height=2*self.planner.pm_rect_y, color='green', alpha=0.5))
+        self.ax['birdseye'].add_patch(plt.Rectangle(self.rectangle_goal, width=2*self.planner.pm_rect_x, height=2*self.planner.pm_rect_y, color='red', alpha=0.5))
         self.dt = self.planner.dt
         self.obs_pos = optas.np.array(self.planner.obs)
-        self.obs_visual = plt.Circle(self.obs_pos, radius=self.planner.obs_rad, color='black')
+        self.obs_visual = plt.Rectangle(xy=self.obs_pos, width=2*self.planner.pm_rect_x, height=2*self.planner.pm_rect_y, angle=15.0, color='black') #Circle(self.obs_pos, radius=self.planner.obs_rad, color='black') # 
         self.ax['birdseye'].add_patch(self.obs_visual)
         self.ax['birdseye'].set_aspect('equal')
         self.ax['birdseye'].set_xlim(*self.planner.point_mass.dlim[0])
@@ -235,9 +244,15 @@ class Animate:
         if not animate: return
         self.pos_line = self.ax['position'].axvline(color='blue', alpha=0.5)
         self.vel_line = self.ax['velocity'].axvline(color='blue', alpha=0.5)
-        self.pm_visual = plt.Circle(self.init, radius=self.planner.pm_radius, color='blue', alpha=0.5)
+        self.pm_visual = plt.Rectangle(xy=self.rectangle_init, width=2*self.planner.pm_rect_x, height=2*self.planner.pm_rect_y, angle=0.0, color='black')  # Circle(self.init, radius=self.planner.pm_radius, color='blue', alpha=0.5)
         self.frames = list(range(self.planner.T))
-        self.ani = FuncAnimation(self.fig, self.update, frames=self.frames, blit=True)
+        self.ani = FuncAnimation(self.fig, self.update, frames=self.frames, blit=True, save_count=120)
+        self.ani.save('animation.mp4', writer=writer)
+
+    def save_frame(self, i):
+        filename = f"frame_{i:04d}.png"
+        plt.savefig(filename)
+
 
     def update(self, frame):
 
@@ -266,7 +281,8 @@ class Animate:
         ox = temp*optas.np.sin(alpha)
         oy = temp*optas.np.cos(alpha) + temp
         obs = (ox, oy)
-        self.obs_visual.set_center(obs)
+        obs_rect = (ox - self.planner.pm_rect_x, oy - self.planner.pm_rect_y)
+        self.obs_visual.set_xy(obs_rect)
 
         obs = []
         for i in range(self.controller.T):
@@ -299,8 +315,10 @@ class Animate:
 
         self.mpc_line.set_xdata(mpc_plan[0,:])
         self.mpc_line.set_ydata(mpc_plan[1,:])
+        mpc_next = mpc_plan[:, 0] - (self.planner.pm_rect_x, self.planner.pm_rect_y)
+        self.pm_visual.set_xy(mpc_next)
 
-        self.pm_visual.set_center(mpc_plan[:, 0])
+        #self.obs_visual.set_xy(mpc_rect)
         self.ax['birdseye'].add_patch(self.pm_visual)
 
         return (self.pm_visual, self.pos_line, self.vel_line, self.obs_visual, self.mpc_line, self.pm_pos_curr_x, self.pm_pos_curr_y, self.pm_vel_curr_x, self.pm_vel_curr_y)
@@ -311,6 +329,7 @@ class Animate:
 
 def main():
     from sys import argv
+
     animate = '--noanimate' not in argv
     Animate(animate).show()
 

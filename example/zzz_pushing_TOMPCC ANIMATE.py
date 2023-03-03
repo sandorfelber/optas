@@ -1,8 +1,15 @@
+from matplotlib.animation import FuncAnimation
+import matplotlib.pyplot as plt
+
 # Python standard lib
 import os
 import sys
 import math
 import pathlib
+from matplotlib.widgets import Button
+import numpy as np
+import scipy.integrate as integrate
+
 
 # PyBullet
 import pybullet_api
@@ -11,22 +18,8 @@ import pybullet_api
 import optas
 from optas.spatialmath import *
 
-
 def yaw2quat(angle):
     return Quaternion.fromrpy(tr2eul(rotz(angle))).getquat()
-
-
-######################################
-# Task space planner
-#
-# This is an implementation of [1].
-#
-# References
-#
-#   1. J. Moura, T. Stouraitis, and S. Vijayakumar, Non-prehensile
-#      Planar Manipulation via Trajectory Optimization with
-#      Complementarity Constraints, ICRA, 2022.
-#
 
 class TOMPCCPlanner:
 
@@ -192,12 +185,6 @@ class TOMPCCPlanner:
         slider_plan = self.solver.interpolate(slider_traj, self.Tmax)
         return slider_plan
 
-
-######################################
-# Joint space IK
-#
-
-
 class IK:
 
     def __init__(self, dt, thresh_angle):
@@ -273,8 +260,176 @@ class IK:
         solution = self.solver.solve()
         return solution[f'{self.kuka_name}/dq'].toarray().flatten()
 
-def main():
+class Animate:
+    def __init__(self, planner, X, dX, animate=True):
+        self.planner = planner
+        self.X = X
+        self.dX = dX
 
+        # Setup figure
+        self.fig, self.ax = plt.subplot_mosaic(
+            [['birdseye', 'position'], ['birdseye', 'velocity']],
+            layout='constrained',
+            figsize=(10, 5)
+        )
+
+        self.ax['birdseye'].plot(X[0, :], X[1, :], '-kx', label='plan')
+        self.ax['birdseye'].add_patch(
+            plt.Circle(self.planner.obs, radius=self.planner.obs_rad, color='black')
+        )
+        self.ax['birdseye'].set_aspect('equal')
+        self.ax['birdseye'].set_xlim(*self.planner.point_mass.dlim[0])
+        self.ax['birdseye'].set_ylim(*self.planner.point_mass.dlim[0])
+        self.ax['birdseye'].set_title('Birdseye View')
+        self.ax['birdseye'].set_xlabel('x')
+        self.ax['birdseye'].set_ylabel('y')
+
+        self.ax['position'].plot(self.planner.t, X[0, :], '-rx', label='plan-x')
+        self.ax['position'].plot(self.planner.t, X[1, :], '-bx', label='plan-y')
+        self.ax['position'].set_ylabel('Position')
+        self.ax['position'].set_xlim(0, self.planner.duration)
+
+        axlim = max([abs(l) for l in self.planner.point_mass.dlim[0]])
+        self.ax['position'].set_ylim(-axlim, axlim)
+
+        self.ax['velocity'].plot(self.planner.t, dX[0, :], '-rx', label='plan-dx')
+        self.ax['velocity'].plot(self.planner.t, dX[1, :], '-bx', label='plan-dy')
+        self.ax['velocity'].axhline(
+            self.planner.point_mass.dlim[1][0], color='red', linestyle='--'
+        )
+        self.ax['velocity'].axhline(
+            self.planner.point_mass.dlim[1][1], color='red', linestyle='--', label='limit'
+        )
+        self.ax['velocity'].set_ylabel('Velocity')
+        self.ax['velocity'].set_xlabel('Time')
+
+        self.ax['velocity'].set_xlim(0, self.planner.duration)
+        axlim = max([abs(1.5*l) for l in self.planner.point_mass.dlim[1]])
+        self.ax['velocity'].set_ylim(-axlim, axlim)
+
+        for a in self.ax.values():
+            a.legend(ncol=3, loc='lower right')
+            a.grid()
+
+            # Animate
+        if not animate:
+            return
+        self.pos_line = self.ax['position'].axvline(color='blue', alpha=0.5)
+        self.vel_line = self.ax['velocity'].axvline(color='blue', alpha=0.5)
+        self.pm_visual = plt.Circle(
+            self.planner.x0, radius=self.planner.pm_radius, color='blue', alpha=0.5
+        )
+        self.ax['birdseye'].add_patch(self.pm_visual)
+        self.ani = FuncAnimation(self.fig, self.update, frames=self.planner.simulate, interval=1)
+        
+        # Add state control buttons
+        self.button_ax = self.fig.add_axes([0.9, 0.05, 0.1, 0.05])
+        self.button_step = Button(self.button_ax, 'Step', color='white', hovercolor='gray')
+        self.button_step.on_clicked(lambda event: self.step())
+        
+        self.button_run = Button(self.button_ax, 'Run', color='white', hovercolor='gray')
+        self.button_run.on_clicked(lambda event: self.run())
+        
+        self.button_pause = Button(self.button_ax, 'Pause', color='white', hovercolor='gray')
+        self.button_pause.on_clicked(lambda event: self.pause())
+        
+        self.button_reset = Button(self.button_ax, 'Reset', color='white', hovercolor='gray')
+        self.button_reset.on_clicked(lambda event: self.reset())
+        
+        # Add timer text
+        self.timer_text = self.fig.text(
+            0.1, 0.95, '', ha='center', fontsize=16, transform=self.fig.transFigure
+        )
+        
+        # Set up initial plot
+        self.update(0)
+        self.fig.canvas.draw()
+        plt.show()
+
+class PlannerAnimation:
+    def __init__(self, planner, dt, Lx, Ly):
+        self.planner = planner
+        self.fig, self.ax = plt.subplots()
+        self.ax.set_xlim(-1.5, 1.5)
+        self.ax.set_ylim(-1.5, 1.5)
+        self.box, = self.ax.plot([], [], 'r')
+        self.contact, = self.ax.plot([], [], 'bo')
+        self.goal, = self.ax.plot([], [], 'gs')
+        self.controls = []
+        for i in range(4):
+            self.controls.append(self.ax.arrow(0, 0, 0, 0, head_width=0.05, head_length=0.1, fc='k', ec='k'))
+        self.time_text = self.ax.text(0.05, 0.9, '', transform=self.ax.transAxes)
+        self.sliders = []
+        self.phis = []
+        Lx = float(Lx)
+        Ly = float(Ly)
+        self.phi_lo = math.atan2(Lx, Ly)
+        self.phi_up = -self.phi_lo
+        for i in range(self.planner.T):
+            slider, = self.ax.plot([], [], 'r')
+            self.sliders.append(slider)
+            phi, = self.ax.plot([], [], 'r')
+            self.phis.append(phi)
+        self.dt = dt
+        self.time_step = 0
+
+    def init(self):
+        self.box.set_data([], [])
+        self.contact.set_data([], [])
+        self.goal.set_data([], [])
+        for control in self.controls:
+            control.set_data([], [])
+        for slider in self.sliders:
+            slider.set_data([], [])
+        for phi in self.phis:
+            phi.set_data([], [])
+        self.time_text.set_text('')
+        return self.box, self.contact, self.goal, self.controls, self.sliders, self.phis, self.time_text
+
+    def animate(self, i):
+        self.time_step += 1
+        self.time_text.set_text(f"Time: {self.time_step*self.dt:.2f}s")
+        GpS, GthetaS = self.planner.GpS[:, i]
+        GpST, GthetaST = self.planner.GpST[:, 0]
+        SxC, SyC, SphiC = self.planner.contact_states[:, i]
+        
+        # update controls
+        for control, u in zip(self.controls, self.planner.controls[:, i]):
+            control.set_data([GpS], [0])
+            control.set_offsets([(GpS, 0)])
+            control.set_UVC([u, 0], [0, 1])
+        
+        # update box
+        Lx, Ly = self.box_size
+        self.box.set_data([GpS-Ly/2, GpS-Ly/2, GpS+Ly/2, GpS+Ly/2, GpS-Ly/2], [0-Lx/2, 0+Lx/2, 0+Lx/2, 0-Lx/2, 0-Lx/2])
+        
+        # update contact point
+        self.contact.set_data([GpS+SxC], [SyC])
+        
+        # update goal
+        self.goal.set_data([GpST], [0])                                  
+        
+        # update slider
+        for j in range(i, self.planner.T):
+            GpSj, GthetaSj = self.planner.GpS[:, j]
+            SxCj, SyCj, SphiCj = self.planner.contact_states[:, j]
+            slider_x = [GpSj-Ly/2, GpSj-Ly/2, GpSj+Ly/2, GpSj+Ly/2, GpSj-Ly/2]
+            slider_y = [SyCj-Lx/2, SyCj+Lx/2, SyCj+Lx/2, SyCj-Lx/2, SyCj-Lx/2]
+            self.slider[j].set_data(slider_x, slider_y)
+
+def main():
+    dt = 0.1
+    Lx=0.2
+    Ly=0.1
+    to_mpcc_planner = TOMPCCPlanner(dt, Lx, Ly)
+    myanimation = PlannerAnimation(to_mpcc_planner, dt, Lx, Ly)
+    ani = FuncAnimation(myanimation.fig, myanimation.animate, frames=to_mpcc_planner.T, init_func=myanimation.init, blit=True)
+    plt.show()
+
+if __name__ == '__main__':
+    sys.exit(main())
+
+'''
     # Setup PyBullet
     qc = -optas.np.deg2rad([0, 30, 0, -90, 0, 60, 0])
     q = qc.copy()
@@ -358,9 +513,14 @@ def main():
         GpC = state[:2] + rot2(state[2] + state[3] - 0.5*optas.np.pi)@SpC
         dr = rot2(state[2] + state[3] - 0.5*optas.np.pi) @ optas.vertcat(optas.cos(-0.5*optas.np.pi), optas.sin(-0.5*optas.np.pi))
         GpC -= dr*eff_ball_radius  # accounts for end effector ball radius
+
+        # Create an instance of the Animate class and animate the motion
+        animate = Animate(SpC, GpC)
+        animate.animate()
+
         p = GpC.toarray().flatten().tolist() + [0.06]
         box_position = state[:2].tolist() + [0.06]
-        print("YYYYYYYYYYYYYYYYYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", yaw2quat(state[2]).toarray().flatten())
+
         plan_box.reset(
             base_position=box_position,
             base_orientation=yaw2quat(state[2]).toarray().flatten(),
@@ -376,3 +536,4 @@ def main():
 
 if __name__ == '__main__':
     sys.exit(main())
+'''

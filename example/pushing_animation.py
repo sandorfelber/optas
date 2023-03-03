@@ -191,6 +191,16 @@ class TOMPCCPlanner:
         slider_traj = solution['state/x']
         slider_plan = self.solver.interpolate(slider_traj, self.Tmax)
         return slider_plan
+    
+    def state_to_pose(state, Ly = 0.1, eff_ball_radius = 0.015):
+        SpC = optas.vertcat(0.5*Ly, 0.5*Ly*optas.tan(state[3]))
+        GpC = state[:2] + rot2(state[2] + state[3] - 0.5*optas.np.pi)@SpC
+        dr = rot2(state[2] + state[3] - 0.5*optas.np.pi) @ optas.vertcat(optas.cos(-0.5*optas.np.pi), optas.sin(-0.5*optas.np.pi))
+        GpC -= dr*eff_ball_radius  # accounts for end effector ball radius
+        p = GpC.toarray().flatten().tolist() + [0.06]
+        box_position = state[:2].tolist() + [0.06]
+        base_orientation=yaw2quat(state[2]).toarray().flatten()
+        return p, box_position, base_orientation
 
 
 ######################################
@@ -354,13 +364,15 @@ def main():
         dqgoal = ik.compute_target_velocity(q, p)
         q += dt*dqgoal
         state = plan(t)
-        SpC = optas.vertcat(0.5*Ly, 0.5*Ly*optas.tan(state[3]))
-        GpC = state[:2] + rot2(state[2] + state[3] - 0.5*optas.np.pi)@SpC
-        dr = rot2(state[2] + state[3] - 0.5*optas.np.pi) @ optas.vertcat(optas.cos(-0.5*optas.np.pi), optas.sin(-0.5*optas.np.pi))
-        GpC -= dr*eff_ball_radius  # accounts for end effector ball radius
-        p = GpC.toarray().flatten().tolist() + [0.06]
-        box_position = state[:2].tolist() + [0.06]
-        print("YYYYYYYYYYYYYYYYYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", yaw2quat(state[2]).toarray().flatten())
+        print("/////////////////////////////////////////////////")
+        print("STATE")
+        print(state)
+        print("/////////////////////////////////////////////////")
+        p, box_position, orientation = TOMPCCPlanner.state_to_pose(state)
+        print("IM PRINTING")
+        print(p)
+        print(box_position)
+        print(orientation)
         plan_box.reset(
             base_position=box_position,
             base_orientation=yaw2quat(state[2]).toarray().flatten(),
@@ -368,11 +380,11 @@ def main():
         kuka.cmd(q)
         pybullet_api.time.sleep(dt)
 
+
     pb.stop()
     pb.close()
 
     return 0
-
 
 if __name__ == '__main__':
     sys.exit(main())

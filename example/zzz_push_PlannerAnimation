@@ -1,0 +1,127 @@
+class PlannerAnimation:
+    def __init__(self, planner):
+        self.planner = planner
+        self.fig, self.ax = plt.subplots()
+        self.ax.set_xlim(-1.5, 1.5)
+        self.ax.set_ylim(-1.5, 1.5)
+        self.box, = self.ax.plot([], [], 'r')
+        self.contact, = self.ax.plot([], [], 'bo')
+        self.goal, = self.ax.plot([], [], 'gs')
+        self.controls = []
+        for i in range(4):
+            self.controls.append(self.ax.arrow(0, 0, 0, 0, head_width=0.05, head_length=0.1, fc='k', ec='k'))
+        self.time_text = self.ax.text(0.05, 0.9, '', transform=self.ax.transAxes)
+        self.sliders = []
+        self.phis = []
+        self.phi_lo = math.atan2(self.planner.Lx, self.planner.Ly)
+        self.phi_up = -self.phi_lo
+        for i in range(self.planner.T):
+            slider, = self.ax.plot([], [], 'r')
+            self.sliders.append(slider)
+            phi, = self.ax.plot([], [], 'r')
+            self.phis.append(phi)
+        self.dt = self.planner.dt
+        self.time_step = 0
+
+    def init(self):
+        self.box.set_data([], [])
+        self.contact.set_data([], [])
+        self.goal.set_data([], [])
+        for control in self.controls:
+            control.set_data([], [])
+        for slider in self.sliders:
+            slider.set_data([], [])
+        for phi in self.phis:
+            phi.set_data([], [])
+        self.time_text.set_text('')
+        return self.box, self.contact, self.goal, self.controls, self.sliders, self.phis, self.time_text
+
+    def animate(self, i):
+        self.time_step += 1
+        self.time_text.set_text(f"Time: {self.time_step*self.dt:.2f}s")
+        GpS, GthetaS = self.planner.GpS[:, i]
+        GpST, GthetaST = self.planner.GpST[:, 0]
+        SxC, SyC, SphiC = self.planner.contact_states[:, i]
+        
+        # update controls
+        for control, u in zip(self.controls, self.planner.controls[:, i]):
+            control.set_data([GpS], [0])
+            control.set_offsets([(GpS, 0)])
+            control.set_UVC([u, 0], [0, 1])
+        
+        # update box
+        Lx, Ly = self.box_size
+        self.box.set_data([GpS-Ly/2, GpS-Ly/2, GpS+Ly/2, GpS+Ly/2, GpS-Ly/2], [0-Lx/2, 0+Lx/2, 0+Lx/2, 0-Lx/2, 0-Lx/2])
+        
+        # update contact point
+        self.contact.set_data([GpS+SxC], [SyC])
+        
+        # update goal
+        self.goal.set_data([GpST], [0])                                  
+        
+        # update slider
+        for j in range(i, self.planner.T):
+            GpSj, GthetaSj = self.planner.GpS[:, j]
+            SxCj, SyCj, SphiCj = self.planner.contact_states[:, j]
+            slider_x = [GpSj-Ly/2, GpSj-Ly/2, GpSj+Ly/2, GpSj+Ly/2, GpSj-Ly/2]
+            slider_y = [SyCj-Lx/2, SyCj+Lx/2, SyCj+Lx/2, SyCj-Lx/2, SyCj-Lx/2]
+            self.slider[j].set_data(slider_x, slider_y)
+
+
+
+
+
+'''
+        self.time_step += 1
+        self.time_text.set_text(f"Time: {self.time_step*self.dt:.2f}s")
+        GpS, GthetaS = self.planner.GpS[:, i]
+        GpST, GthetaST = self.planner.GpST[:, 0]
+        SxC, SyC, SphiC = self.planner.contact_states[:, i]
+        for control, u in zip(self.controls, self.planner.controls[:, i]):
+            control.set_data([GpS], [0])
+            control.set_offsets([(GpS, 0)])
+            control.set_UVC([u, 0], [0, 1])
+        self.box.set_data([GpS-Ly/2, GpS-Ly/2, GpS+Ly/2, GpS+Ly/2, GpS-Ly/2], [0-Lx/2, 0+Lx/2, 0+Lx/2, 0-Lx/2, 0-Lx/2])
+        self.contact.set_data([GpS+SxC], [SyC])
+        self.goal.set_data([GpST], [0])
+        for j in range(i, self.planner.T):
+            GpSj, GthetaSj = self.planner.GpS[:, j]
+            SxCj, SyCj, SphiCj = self.planner.contact_states[:, j]
+            slider_x = [GpSj-Ly/2, GpSj-Ly/2, GpSj+Ly/2, GpSj+Ly/2]
+            slider_y = [0, self.planner.robot_width, self.planner.robot_width, 0]
+            slider_poly = Polygon(np.column_stack((slider_x, slider_y)))
+            contact_poly = self.get_contact_polygon(SxCj, SyCj, SphiCj)
+            intersection_poly = slider_poly.intersection(contact_poly)
+            if not intersection_poly.area > 0:
+            continue
+            if self.planner.verbose:
+            print(f"Intersection at {GpSj:.2f}m, j={j}")
+            t_contact = j * self.planner.dt
+            x_contact, y_contact, _ = self.planner.fk(q_traj[j], SxCj, SyCj, SphiCj)
+            #: Calculate sliding direction
+            slide_direction = None
+            #: Calculate friction force
+            friction_force = None
+            # : Calculate acceleration due to friction
+            friction_acc = None
+            # : Update state derivatives
+            dX[t_contact] = np.concatenate([dx_traj[j], [0, 0, 0]]) # placeholder, update this
+            dQ[t_contact] = np.concatenate([dq_traj[j], [0, 0, 0]]) # placeholder, update this
+            return dX, dQ
+'''
+            '''        # Calculate the position of the slider in the contact frame
+        R_SC = np.array([[np.cos(SphiCj), -np.sin(SphiCj)],
+                         [np.sin(SphiCj), np.cos(SphiCj)]])
+        slider_pos_C = R_SC.dot(np.vstack((slider_x, slider_y))) + np.array([[SxCj], [SyCj]])
+        
+        # Calculate the position of the slider in the global frame
+        R_GS = np.array([[np.cos(GthetaSj), -np.sin(GthetaSj)],
+                         [np.sin(GthetaSj), np.cos(GthetaSj)]])
+        slider_pos_G = R_GS.dot(slider_pos_C) + np.array([[GpSj], [0]])
+        
+        # Check if the slider overlaps with the obstacle
+        if self.check_collision(slider_pos_G):
+            return False
+            
+return True
+'''
