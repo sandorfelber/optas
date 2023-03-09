@@ -74,8 +74,10 @@ class Planner:
         self.obs_rad = obs_rad
         self.duration = float(T-1)*dt  # task duration
         self.point_mass = point_mass
-
+        self.i = 0
     def plan(self, init, goal):
+        print("iiiiiiiiiiiiiiiiiiiiiiiiiiiii", self.i)
+        self.i = self.i + 1
         self.solver.reset_parameters({'init': init, 'goal': goal})
         solution = self.solver.solve()
         plan_x = self.solver.interpolate(solution[f'{self.pm_name}/x'], self.duration)

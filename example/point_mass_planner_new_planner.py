@@ -2,8 +2,8 @@ import optas
 import matplotlib.pyplot as plt
 from matplotlib import animation
 from matplotlib.animation import FuncAnimation
-from optas.spatialmath import *
 from scipy.spatial.transform import Rotation as R
+from optas.spatialmath import *
 import math
 import numpy as np
 
@@ -39,7 +39,7 @@ class Planner:
         T = 50  # number of step
         Lx = float(Lx)  # length of slider (box) in x-axis
         Ly = float(Ly)  # length of slider (box) in y-axis
-        eff_ball_radius = 0.5
+        eff_ball_radius = 0.015
         self.Lx = Lx
         self.Ly = Ly
         self.eff_ball_radius = eff_ball_radius
@@ -51,8 +51,6 @@ class Planner:
         phi_lo = math.atan2(Lx, Ly) # lower limit for phi
         phi_up = -phi_lo # upper limit for phi
         L = optas.diag([1, 1, 0.5])  # limit surface model
-        SxC0 = 0.5*Ly # initial contact position in x-axis of slider
-        SyC0 = 0. # initial contact position in y-axis of slider
         SphiC0 = 0. # initial contact orientation in slider frame
         self.duration = float(T-1)*dt  # task duration
         Wu = optas.diag([ # weigting on minimizing controls cost term
@@ -71,18 +69,18 @@ class Planner:
         SphiCT = 0. # final contact orientation in slider frame
     
         rectangle_dim = 2 # x, y dimensions of rectangle
-        dlim = {0: [-2, 2], 1: [-5, 5]}  # pos/vel limits
+        dlim = {0: [-0.25, 1], 1: [-0.1, 1]}  # pos/vel limits
 
         # Setup task models
         state = optas.TaskModel('state', dim=nX, time_derivs=[0], dlim=dlim)
-        state_alias_for_rectangle = state
+        state = state
         state_name = state.get_name()
         control = optas.TaskModel('control', dim=nU, time_derivs=[0], T=T-1, symbol='u')
         #rectangle_task_model = optas.TaskModel('rectangle_task_model', rectangle_dim, time_derivs=[0, 1], dlim=dlim)
         #rectangle_task_model_name = rectangle_task_model.get_name()
 
         # Setup optimization builder
-        builder = optas.OptimizationBuilder(T=T, tasks=[state, control], derivs_align=True)
+        builder = optas.OptimizationBuilder(T=T, tasks=[state, control])
 
         # Add additional decision variables
         eps = builder.add_decision_variables('slack', T-1)
@@ -200,13 +198,12 @@ class Planner:
         opt = builder.build()
         #self.solver = optas.CasADiSolver(opt).setup('ipopt')
         self.solver = optas.ScipyMinimizeSolver(opt).setup('SLSQP')
-
+        print("SQLSP called")
         # For later
         self.state_name = state_name
-        self.Tmax = float(T-1)*dt
         self.T = T
         self.nX = nX
-        self.state_alias_for_rectangle = state_alias_for_rectangle
+        self.state = state
 
 
     def plan(self, GpS0, GthetaS0, GpST, GthetaST):
@@ -215,7 +212,7 @@ class Planner:
             alpha = float(k)/float(self.T-1)
             state_x_init[:2,k] = optas.DM(GpS0) * (1-alpha) + alpha*optas.DM(GpST)
             state_x_init[2, k] = GthetaS0 * (1-alpha) + alpha * GthetaST
-        
+            #print(state_x_init)
         self.solver.reset_initial_seed({
             'state/x': state_x_init,
             'control/u': 0.01*optas.DM.ones(4, self.T-1)
@@ -229,12 +226,14 @@ class Planner:
         })
     
         solution = self.solver.solve()
+        #print(solution)
         optas.np.set_printoptions(suppress=True, precision=3, linewidth=1000)
         slider_traj = solution['state/x']
-        slider_traj_dx = solution['state/x']/self.dt #'control/u']
-        slider_plan = self.solver.interpolate(slider_traj, self.Tmax)
-        slider_plan_dx = self.solver.interpolate(slider_traj_dx, self.Tmax)
-        return slider_plan, slider_plan_dx
+        #print(slider_traj)
+        #slider_traj_dx = solution['state/x'] * self.dt                   #'control/u']
+        slider_plan = self.solver.interpolate(slider_traj, self.duration)
+        #slider_plan_dx = self.solver.interpolate(slider_traj_dx, self.duration)
+        return slider_plan#, slider_plan_dx
     
     def state_to_pose(self, state):
         SpC = optas.vertcat(0.5*self.Ly, 0.5*self.Ly*optas.tan(state[3]))
@@ -249,6 +248,8 @@ class Planner:
         #base_orientation=[yaw2quat(state[2]).toarray().flatten()[2], yaw2quat(state[2]).toarray().flatten()[3]]
         base_orientation_rotation = R.from_quat([yaw2quat(state[2]).toarray().flatten()[0], yaw2quat(state[2]).toarray().flatten()[1], yaw2quat(state[2]).toarray().flatten()[2], yaw2quat(state[2]).toarray().flatten()[3]])
         base_orientation = base_orientation_rotation.as_euler('zyx', degrees=True)[0] #base_orientation in degrees (about z axis)
+        #print("box:", box_position)
+        #print("endeff:",endeff_position)
         return endeff_position, box_position, base_orientation
 
 class Animate:
@@ -256,23 +257,51 @@ class Animate:
     def __init__(self, animate):
 
         # Setup planner
-        self.planner = Planner(1, Lx = 0.4, Ly = 0.2)
+        hz = 50
+        dt = 1.0/float(hz)
+        self.planner = Planner(0.1, Lx = 0.2, Ly = 0.1)
         # self.init = [-1.5, -1.5] # GpS0
         # self.goal = [1, 1]       # GpST
-        self.endeffector_location_init = optas.np.array([0., 0.])
-        GxS0, GyS0 = -1, -1
-        GxST, GyST = -1, 1
-        self.GthetaS0 = 0*optas.np.pi    # GthetaS0
-        self.GthetaST = 0.*optas.np.pi    # GthetaST
+        self.endeffector_location_init = optas.np.array([0.4, 0.]) #pginit
+        GxS0, GyS0 = 0.0, 0.0
+        GxST, GyST = 0.3, 0.6 # 0.45, 0.3
+        self.GthetaS0 = 0.0*optas.np.pi    # GthetaS0
+        self.GthetaST = 0.1*optas.np.pi    # GthetaST
         self.rectangle_position_init = [GxS0 - 0.5 * self.planner.Lx, GyS0 - 0.5 * self.planner.Ly]
         self.rectangle_position_goal = [GxST - 0.5 * self.planner.Lx, GyST - 0.5 * self.planner.Ly]
 
-        self.plan_x, self.plan_dx = self.planner.plan([GxS0, GyS0], self.GthetaS0, [GxST, GyST], self.GthetaST)
+        self.plan_x = self.planner.plan([GxS0, GyS0], self.GthetaS0, [GxST, GyST], self.GthetaST)
+        #self.plan_x, self.plan_dx = self.planner.plan([GxS0, GyS0], self.GthetaS0, [GxST, GyST], self.GthetaST)
 
         # Setup figure
         self.t = optas.np.linspace(0, self.planner.duration, self.planner.T)
         self.X = self.plan_x(self.t)
-        self.dX = self.plan_dx(self.t)
+        #print(self.X)
+        self.dX = self.plan_x(self.t)
+        self.dX[:,0] = 0  #starting velocity 0
+        # velocity in x direction:
+        self.dX[3] = np.roll(self.dX[0], 1)
+        self.dX[3][0] = 0
+        self.dX[0] = self.dX[0] - self.dX[3]
+        self.dX[0][1] = self.dX[0][1] - GxS0
+        print("self.dX1")
+        print(self.dX)
+        # velocity in y direction: 
+        self.dX[3] = np.roll(self.dX[1], 1)
+        self.dX[3][0] = 0
+        self.dX[1] = self.dX[1] - self.dX[3]
+        self.dX[1][1] = self.dX[1][1] - GyS0
+        #print("self.dX2")
+        #print(self.dX)
+        # angular velocity along z axis: 
+        self.dX[3] = np.roll(self.dX[2], 1)
+        self.dX[3][0] = 0
+        self.dX[2] = self.dX[2] - self.dX[3]
+        self.dX[2][1] = self.dX[2][1] - self.GthetaS0
+        #print("self.dX3")
+        #print(self.dX)
+        
+        #print(self.dX)
         #self.endeff_trajectory = self.planner.state_to_pose(self.update.state)
         self.fig, self.ax = plt.subplot_mosaic([['birdseye', 'position'],
                                                 ['birdseye', 'velocity']],
@@ -282,36 +311,36 @@ class Animate:
 
         self.ax['birdseye'].plot(self.X[0, :], self.X[1, :], '-kx', label='box_center_plan')
         #self.ax['birdseye'].plot(self.X[2, :], self.X[3, :], '-kx', label='pusher_plan')
-        self.ax['birdseye'].add_patch(plt.Rectangle(self.rectangle_position_init, width=self.planner.Lx, height=self.planner.Ly, angle=yaw2deg(self.GthetaS0/(optas.np.pi)), color='green', alpha=0.5))
-        self.ax['birdseye'].add_patch(plt.Rectangle(self.rectangle_position_goal, width=self.planner.Lx, height=self.planner.Ly, angle=yaw2deg(self.GthetaST/(optas.np.pi)), color='red', alpha=0.5))
+        self.ax['birdseye'].add_patch(plt.Rectangle(self.rectangle_position_init, width=self.planner.Lx, height=self.planner.Ly, angle=yaw2deg(self.GthetaS0), color='green', alpha=0.5, rotation_point='center'))
+        self.ax['birdseye'].add_patch(plt.Rectangle(self.rectangle_position_goal, width=self.planner.Lx, height=self.planner.Ly, angle=yaw2deg(self.GthetaST), color='red', alpha=0.5, rotation_point='center'))
         #self.obs_pos = optas.np.array(self.planner.obs_position)
         #self.ax['birdseye'].add_patch(plt.Circle(self.obs_pos, radius=self.planner.obs_rad, color='black'))
         #self.ax['birdseye'].add_patch(plt.Circle(self.rectangle_goal, radius=self.planner.eff_ball_radius, color='blue', alpha=0.5))
         self.ax['birdseye'].set_aspect('equal')
-        #print(self.planner.state_alias_for_rectangle.dlim)
-        self.ax['birdseye'].set_xlim(*self.planner.state_alias_for_rectangle.dlim[0])
-        self.ax['birdseye'].set_ylim(*self.planner.state_alias_for_rectangle.dlim[0])
+        #print(self.planner.state.dlim)
+        self.ax['birdseye'].set_xlim(*self.planner.state.dlim[0])
+        self.ax['birdseye'].set_ylim(*self.planner.state.dlim[0])
         self.ax['birdseye'].set_title('Birdseye View')
         self.ax['birdseye'].set_xlabel('x')
         self.ax['birdseye'].set_ylabel('y')
-
+        #print(self.X)
         self.ax['position'].plot(self.t, self.X[0,:], '-rx', label='plan-x')
         self.ax['position'].plot(self.t, self.X[1,:], '-bx', label='plan-y')
         self.ax['position'].set_ylabel('Position')
         self.ax['position'].set_xlim(0, self.planner.duration)
 
-        axlim = max([abs(l) for l in self.planner.state_alias_for_rectangle.dlim[0]])
+        axlim = max([abs(l) for l in self.planner.state.dlim[0]])
         self.ax['position'].set_ylim(-axlim, axlim)
 
         self.ax['velocity'].plot(self.t, self.dX[0,:], '-rx', label='plan-dx')
         self.ax['velocity'].plot(self.t, self.dX[1,:], '-bx', label='plan-dy')
-        self.ax['velocity'].axhline(self.planner.state_alias_for_rectangle.dlim[1][0], color='red', linestyle='--')
-        self.ax['velocity'].axhline(self.planner.state_alias_for_rectangle.dlim[1][1], color='red', linestyle='--', label='limit')
+        self.ax['velocity'].axhline(self.planner.state.dlim[1][0], color='red', linestyle='--')
+        self.ax['velocity'].axhline(self.planner.state.dlim[1][1], color='red', linestyle='--', label='limit')
         self.ax['velocity'].set_ylabel('Velocity')
         self.ax['velocity'].set_xlabel('Time')
 
         self.ax['velocity'].set_xlim(0, self.planner.duration)
-        axlim = max([abs(1.5*l) for l in self.planner.state_alias_for_rectangle.dlim[1]])
+        axlim = max([abs(1.5*l) for l in self.planner.state.dlim[1]])
         self.ax['velocity'].set_ylim(-axlim, axlim)
 
         for a in self.ax.values():
@@ -322,12 +351,12 @@ class Animate:
         if not animate: return
         self.pos_line = self.ax['position'].axvline(color='blue', alpha=0.5)
         self.vel_line = self.ax['velocity'].axvline(color='blue', alpha=0.5)
-        self.rectangle_visualisation = plt.Rectangle(xy=self.rectangle_position_init, width=self.planner.Lx, height=self.planner.Ly, angle=0.0, color='black')
+        self.rectangle_visualisation = plt.Rectangle(xy=self.rectangle_position_init, width=self.planner.Lx, height=self.planner.Ly, angle=yaw2deg(self.GthetaS0), color='black', rotation_point = 'center')
         self.endeffector_visualisation = plt.Circle(self.endeffector_location_init, radius=self.planner.eff_ball_radius, color='blue')
         self.ani = FuncAnimation(self.fig, self.update, frames=self.t, blit=True)
         #animation save as video:
-        f = r"/home/sandorfelber/libraries/optas/example/03_03_large_end_eff_straight_straight.mp4" 
-        writermp4 = animation.FFMpegWriter(fps=60) 
+        f = r"/home/sandorfelber/Desktop/videos/Pusher_Slider_Animation_03_09_Diagonal_Path_2.mp4" 
+        writermp4 = animation.FFMpegWriter(fps=10) 
         self.ani.save(f, writer=writermp4)
 
     def update(self, frame):
@@ -344,7 +373,8 @@ class Animate:
         #print(np.array(base_orientation))
         #print("self.plan_x(frame)", self.plan_x(frame))
         #print(endeff_position)
-        self.rectangle_visualisation.set_xy(np.array([box_position[0], box_position[1]]) - np.array([self.planner.Lx/2, self.planner.Ly/2]))
+        self.rectangle_visualisation.set_xy(np.array([box_position[0], box_position[1]]) - np.array([self.planner.Lx*0.5, self.planner.Ly*0.5]))
+        #self.rectangle_visualisation.rotation_point = center
         self.rectangle_visualisation.set_angle(base_orientation)
         self.endeffector_visualisation.set_center(np.array([endeff_position[0], endeff_position[1]]))
         # self.rectangle_visualisation.set_xy([ (np.array(self.plan_x(frame)[1]) - np.array(self.planner.Lx)), np.array(self.plan_x(frame)[3]) - np.array([self.planner.Lx, self.planner.Ly]) ])

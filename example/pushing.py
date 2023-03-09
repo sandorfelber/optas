@@ -187,6 +187,7 @@ class TOMPCCPlanner:
         })
 
         solution = self.solver.solve()
+        print(solution)
         optas.np.set_printoptions(suppress=True, precision=3, linewidth=1000)
         slider_traj = solution['state/x']
         slider_plan = self.solver.interpolate(slider_traj, self.Tmax)
@@ -289,9 +290,9 @@ def main():
     )
     kuka = pybullet_api.KukaLWR()
     kuka.reset(qc)
-    GxS0 = 0.4
+    GxS0 = 0.2#4
     GyS0 = 0.065
-    GthetaS0 = 0.
+    GthetaS0 = -0#.2*optas.np.pi
     box_base_position = [GxS0, GyS0, 0.06]
     Lx = 0.2
     Ly = 0.1
@@ -342,7 +343,7 @@ def main():
     GpS0 = [GxS0, GyS0]
     GpST = [GxST, GyST]
     plan = to_mpcc_planner.plan(GpS0, GthetaS0, GpST, GthetaST)
-
+    print(plan)
     # Main loop
     p = pginit.copy()
     start_time = pybullet_api.time.time()
@@ -354,13 +355,13 @@ def main():
         dqgoal = ik.compute_target_velocity(q, p)
         q += dt*dqgoal
         state = plan(t)
+        #sys.exit()
         SpC = optas.vertcat(0.5*Ly, 0.5*Ly*optas.tan(state[3]))
         GpC = state[:2] + rot2(state[2] + state[3] - 0.5*optas.np.pi)@SpC
         dr = rot2(state[2] + state[3] - 0.5*optas.np.pi) @ optas.vertcat(optas.cos(-0.5*optas.np.pi), optas.sin(-0.5*optas.np.pi))
         GpC -= dr*eff_ball_radius  # accounts for end effector ball radius
         p = GpC.toarray().flatten().tolist() + [0.06]
         box_position = state[:2].tolist() + [0.06]
-        print("YYYYYYYYYYYYYYYYYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO", yaw2quat(state[2]).toarray().flatten())
         plan_box.reset(
             base_position=box_position,
             base_orientation=yaw2quat(state[2]).toarray().flatten(),

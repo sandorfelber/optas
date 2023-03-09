@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "example"
+		},
+		{
+			"path": "../pusher_slider"
+		}
+	],
+	"settings": {}
+}
