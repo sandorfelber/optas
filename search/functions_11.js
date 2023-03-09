@@ -1,0 +1,23 @@
+var searchData=
+[
+  ['set_5fduration_635',['set_duration',['../classoptas_1_1templates_1_1ROSPlanner.html#a9c17867e32dc7618fdc7d5062c6cc0d0',1,'optas::templates::ROSPlanner']]],
+  ['set_5fmodels_636',['set_models',['../classoptas_1_1optimization_1_1Optimization.html#ac1f810dd18c1335e3db90094e913204a',1,'optas::optimization::Optimization']]],
+  ['setup_637',['setup',['../classoptas_1_1solver_1_1Solver.html#a615aded86f794b2f6473591c7cf1af06',1,'optas.solver.Solver.setup()'],['../classoptas_1_1solver_1_1CasADiSolver.html#a5b4d2551f7f2608a323a64b0ef69b6bb',1,'optas.solver.CasADiSolver.setup()'],['../classoptas_1_1solver_1_1OSQPSolver.html#a48c97a87e53dce09c30f4b353153da46',1,'optas.solver.OSQPSolver.setup()'],['../classoptas_1_1solver_1_1CVXOPTSolver.html#a5f3f3f88d85d9b09d381c40652f1390f',1,'optas.solver.CVXOPTSolver.setup()'],['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#a1fe68fd521b09570fc382d54a0ded24e',1,'optas.solver.ScipyMinimizeSolver.setup()']]],
+  ['setup_5fsolver_638',['setup_solver',['../classoptas_1_1templates_1_1Manager.html#a20573c41cb379821be0b0048ab6cad2f',1,'optas::templates::Manager']]],
+  ['skew_639',['skew',['../namespaceoptas_1_1spatialmath.html#af064e84c964cfe9d203200424d71a178',1,'optas::spatialmath']]],
+  ['solve_640',['solve',['../classoptas_1_1solver_1_1Solver.html#aca02bd1279f711a08d0d37a9f33d9149',1,'optas::solver::Solver']]],
+  ['specify_5flinear_5fconstraints_641',['specify_linear_constraints',['../classoptas_1_1optimization_1_1Optimization.html#aa438631f9300614a8d8d8ba4ce4af067',1,'optas::optimization::Optimization']]],
+  ['specify_5fnonlinear_5fconstraints_642',['specify_nonlinear_constraints',['../classoptas_1_1optimization_1_1Optimization.html#a87b910a5ad57c23cf2ebe6d2b4928389',1,'optas::optimization::Optimization']]],
+  ['specify_5fquadratic_5fcost_643',['specify_quadratic_cost',['../classoptas_1_1optimization_1_1Optimization.html#a17220a68aed32e52a14d4f527309c5d5',1,'optas::optimization::Optimization']]],
+  ['specify_5fv_644',['specify_v',['../classoptas_1_1optimization_1_1Optimization.html#ac46c48f1d618991a39a72696143944fd',1,'optas::optimization::Optimization']]],
+  ['sphere_645',['sphere',['../classoptas_1_1visualize_1_1Visualizer.html#a8539f2186e5c4f907ae5e1b59f17f124',1,'optas.visualize.Visualizer.sphere()'],['../namespaceoptas_1_1visualize.html#a5ff9dec43d95687f36884674e3382971',1,'optas.visualize.sphere()']]],
+  ['sphere_5ftraj_646',['sphere_traj',['../classoptas_1_1visualize_1_1Visualizer.html#a35ee010f301d997da770d0229e6e0283',1,'optas.visualize.Visualizer.sphere_traj()'],['../namespaceoptas_1_1visualize.html#ad5e16a8e64e76adc8fcea3d0f0c13cc0',1,'optas.visualize.sphere_traj()']]],
+  ['split_647',['split',['../classoptas_1_1spatialmath_1_1Quaternion.html#a9c4b3a6107aaa2b349f0a62ca024cf59',1,'optas::spatialmath::Quaternion']]],
+  ['start_648',['start',['../classoptas_1_1visualize_1_1Visualizer.html#aa81d6c293131463c09f7c6303d3665c8',1,'optas::visualize::Visualizer']]],
+  ['state_5fname_649',['state_name',['../classoptas_1_1models_1_1Model.html#a2e8f4970d929b555fe853e43d8ef8853',1,'optas::models::Model']]],
+  ['state_5foptimized_5fname_650',['state_optimized_name',['../classoptas_1_1models_1_1Model.html#a4b70d419f6cf1df22fd0371080740ab0',1,'optas::models::Model']]],
+  ['state_5fparameter_5fname_651',['state_parameter_name',['../classoptas_1_1models_1_1Model.html#a0e6a9a9a8fa5388b036cbb3306ff65c5',1,'optas::models::Model']]],
+  ['stats_652',['stats',['../classoptas_1_1solver_1_1Solver.html#a60004f9b9e906611d577686c3d17841e',1,'optas.solver.Solver.stats()'],['../classoptas_1_1solver_1_1CasADiSolver.html#ad3b4861da2587a396771c4dfa3b8055d',1,'optas.solver.CasADiSolver.stats()'],['../classoptas_1_1solver_1_1OSQPSolver.html#af0a05e2c0aead32f2cd24c2edba5d605',1,'optas.solver.OSQPSolver.stats()'],['../classoptas_1_1solver_1_1CVXOPTSolver.html#a9f6b6a8fd95f7ef55f5e17ba1165f4cb',1,'optas.solver.CVXOPTSolver.stats()'],['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#a5f2214377b4b29235fe4168303c2a499',1,'optas.solver.ScipyMinimizeSolver.stats()']]],
+  ['stl_653',['stl',['../classoptas_1_1visualize_1_1Visualizer.html#a7ad6e361542f3cbe0c0a25d6a2f85f21',1,'optas.visualize.Visualizer.stl()'],['../namespaceoptas_1_1visualize.html#aef9cc5bfa94813487ab7b9cc17c5b9f3',1,'optas.visualize.stl()']]],
+  ['sumsqr_654',['sumsqr',['../classoptas_1_1spatialmath_1_1Quaternion.html#a2a7df9711f3b56d2e95bfb9f1ee7d50c',1,'optas::spatialmath::Quaternion']]]
+];

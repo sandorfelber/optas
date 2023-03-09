@@ -1,0 +1,23 @@
+var searchData=
+[
+  ['ddf_69',['ddf',['../classoptas_1_1optimization_1_1Optimization.html#a9d8b3d0a4ded2dbe2bd3feb0080e9615',1,'optas::optimization::Optimization']]],
+  ['ddg_70',['ddg',['../classoptas_1_1optimization_1_1Optimization.html#a26556f2129048267a348c8521a3cad8c',1,'optas.optimization.Optimization.ddg()'],['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#a2c6698af7374953d0c2e0d472f1d23fd',1,'optas.solver.ScipyMinimizeSolver.ddg()']]],
+  ['ddh_71',['ddh',['../classoptas_1_1optimization_1_1Optimization.html#a1c674b4b69da01d12e6c1ae7c94d5861',1,'optas.optimization.Optimization.ddh()'],['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#a7a553be47065246d926bae3ed96dacb4',1,'optas.solver.ScipyMinimizeSolver.ddh()']]],
+  ['ddv_72',['ddv',['../classoptas_1_1optimization_1_1Optimization.html#a746c94d5869555d649e5a6d72e156b8c',1,'optas::optimization::Optimization']]],
+  ['decision_5fvariables_73',['decision_variables',['../classoptas_1_1optimization_1_1Optimization.html#a7128591a8e36ff00e987e0cb36ac7499',1,'optas::optimization::Optimization']]],
+  ['deg2rad_74',['deg2rad',['../namespaceoptas.html#ab47d1de31fc861cf18fa771121c7de3b',1,'optas']]],
+  ['deprecation_5fwarning_75',['deprecation_warning',['../namespaceoptas_1_1models.html#a77336bbe2e1c11a46a3722835afa0b29',1,'optas::models']]],
+  ['derive_5fjacobian_5fand_5fhessian_5ffunctions_76',['derive_jacobian_and_hessian_functions',['../namespaceoptas_1_1optimization.html#aa69ee445ade1e9ea195122f772f54895',1,'optas::optimization']]],
+  ['derivs_5falign_77',['derivs_align',['../classoptas_1_1builder_1_1OptimizationBuilder.html#a42744283ebcec2f4c7ad11f53acae704',1,'optas::builder::OptimizationBuilder']]],
+  ['df_78',['df',['../classoptas_1_1optimization_1_1Optimization.html#a25fe5f76828676a79ff698d35a3135bb',1,'optas::optimization::Optimization']]],
+  ['dg_79',['dg',['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#a06e5f2bdc2d120ef0c03018fa395854b',1,'optas::solver::ScipyMinimizeSolver']]],
+  ['dh_80',['dh',['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#a18643d13bf13fc6b9bd9d0ad3026dc6c',1,'optas::solver::ScipyMinimizeSolver']]],
+  ['dict2vec_81',['dict2vec',['../classoptas_1_1sx__container_1_1SXContainer.html#a155fa80e81d1251f017f90f387a0bf45',1,'optas::sx_container::SXContainer']]],
+  ['did_5fsolve_82',['did_solve',['../classoptas_1_1solver_1_1CasADiSolver.html#a0ce7081e2dd0a09e9eaaedd2b03896ac',1,'optas.solver.CasADiSolver.did_solve()'],['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#a98bc28f77b63386dc09accdd3b85fd1c',1,'optas.solver.ScipyMinimizeSolver.did_solve()'],['../classoptas_1_1solver_1_1CVXOPTSolver.html#ade7489e7dbe76e6be9212c674583f152',1,'optas.solver.CVXOPTSolver.did_solve()'],['../classoptas_1_1solver_1_1OSQPSolver.html#a66d1645adb0e234adae1ad8e1a728e84',1,'optas.solver.OSQPSolver.did_solve()'],['../classoptas_1_1solver_1_1Solver.html#ae3d0a2c52482cf56bd1e88b5b42e6b24',1,'optas.solver.Solver.did_solve()']]],
+  ['dim_83',['dim',['../classoptas_1_1models_1_1Model.html#a5129229b91937f2727d87f57b7bf27a7',1,'optas::models::Model']]],
+  ['discrete_84',['discrete',['../classoptas_1_1sx__container_1_1SXContainer.html#a6a6155d07c96a4932e1dca2dff6b753f',1,'optas::sx_container::SXContainer']]],
+  ['dlim_85',['dlim',['../classoptas_1_1models_1_1Model.html#a4790a52e50d98fc34d0457ed23c144ff',1,'optas::models::Model']]],
+  ['dm_86',['DM',['../namespaceoptas_1_1sx__container.html#ae69355708d4ac21b8096e4a5b099b902',1,'optas::sx_container']]],
+  ['duration_87',['duration',['../classoptas_1_1templates_1_1ROSPlanner.html#aca9a440e182b2e7f5c26c44db8df5cb1',1,'optas::templates::ROSPlanner']]],
+  ['dv_88',['dv',['../classoptas_1_1optimization_1_1Optimization.html#a84a403d447b7284d532dd5e280886430',1,'optas.optimization.Optimization.dv()'],['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#a7affe6d2402d5e6248e8b5e85e508ac9',1,'optas.solver.ScipyMinimizeSolver.dv()']]]
+];

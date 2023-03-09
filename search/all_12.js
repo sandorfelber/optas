@@ -1,0 +1,26 @@
+var searchData=
+[
+  ['r2t_303',['r2t',['../namespaceoptas_1_1spatialmath.html#a7c3b608d2dd2b001ca80db13d44ccc88',1,'optas::spatialmath']]],
+  ['rad2deg_304',['rad2deg',['../namespaceoptas.html#aacda9c84ea4d24fd13a23287d0081a6b',1,'optas']]],
+  ['readme_2emd_305',['README.md',['../README_8md.html',1,'']]],
+  ['record_5fsolver_5fperf_306',['record_solver_perf',['../classoptas_1_1templates_1_1Manager.html#ad7c9f60770b2d2f07867a688e7ca7672',1,'optas::templates::Manager']]],
+  ['ren_307',['ren',['../classoptas_1_1visualize_1_1Visualizer.html#a2398747ccfdfc5044aa21a562bbcd957',1,'optas::visualize::Visualizer']]],
+  ['renwin_308',['renWin',['../classoptas_1_1visualize_1_1Visualizer.html#a46a5c304c34e0ca540df63a4deec3012',1,'optas::visualize::Visualizer']]],
+  ['reset_309',['reset',['../classoptas_1_1templates_1_1Manager.html#a6931405ab5235d6551a50d12e17fb7a7',1,'optas::templates::Manager']]],
+  ['reset_5finitial_5fseed_310',['reset_initial_seed',['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#ae34492576e7500eff8237acd5f967e91',1,'optas.solver.ScipyMinimizeSolver.reset_initial_seed()'],['../classoptas_1_1solver_1_1Solver.html#abfe326f0dd05814fb65ec00e14af0eb4',1,'optas.solver.Solver.reset_initial_seed()']]],
+  ['reset_5fmanager_311',['reset_manager',['../classoptas_1_1templates_1_1Manager.html#a6e375b396b96b8752ad63c4ef68dae6d',1,'optas::templates::Manager']]],
+  ['reset_5fparameters_312',['reset_parameters',['../classoptas_1_1solver_1_1Solver.html#ae64e6a17291dc2ffbf14b290be411359',1,'optas.solver.Solver.reset_parameters()'],['../classoptas_1_1solver_1_1OSQPSolver.html#ad2e871c78c39b55728859f46a1f33b5f',1,'optas.solver.OSQPSolver.reset_parameters()'],['../classoptas_1_1solver_1_1CVXOPTSolver.html#a3364322713ea86a7097f69fbf186e616',1,'optas.solver.CVXOPTSolver.reset_parameters()'],['../classoptas_1_1solver_1_1ScipyMinimizeSolver.html#ad494e729b049eb4f1a95043af618a512',1,'optas.solver.ScipyMinimizeSolver.reset_parameters()']]],
+  ['robot_313',['robot',['../namespaceoptas_1_1visualize.html#aacb77e6c7bfae175191fab97ae3e17b4',1,'optas.visualize.robot()'],['../classoptas_1_1visualize_1_1Visualizer.html#a88725cb231d9362d2c2f89503b429e40',1,'optas.visualize.Visualizer.robot(self, robot_model, q=None, alpha=1.0, show_links=False, link_axis_scale=0.2, link_axis_linewidth=1.0, link_center_radius=0.01, link_center_rgb=None, link_center_alpha=None, display_link_names=False, link_names_scale=[0.005, 0.005, 0.005], link_names_rgb=[1, 1, 1], link_names_alpha=1.0)']]],
+  ['robot_5ftraj_314',['robot_traj',['../classoptas_1_1visualize_1_1Visualizer.html#a52471cfd9f54ef77f2a88f61804597b5',1,'optas.visualize.Visualizer.robot_traj()'],['../namespaceoptas_1_1visualize.html#a0d09468cdbe7e170b608ecd1f74648b1',1,'optas.visualize.robot_traj()']]],
+  ['robotmodel_315',['RobotModel',['../classoptas_1_1models_1_1RobotModel.html',1,'optas::models']]],
+  ['rosapi_316',['rosapi',['../classoptas_1_1templates_1_1ROSManager.html#a2b03f89e82ae8c40aafee577bc3d4248',1,'optas::templates::ROSManager']]],
+  ['roscontroller_317',['ROSController',['../classoptas_1_1templates_1_1ROSController.html',1,'optas::templates']]],
+  ['rosmanager_318',['ROSManager',['../classoptas_1_1templates_1_1ROSManager.html',1,'optas::templates']]],
+  ['rosplanner_319',['ROSPlanner',['../classoptas_1_1templates_1_1ROSPlanner.html',1,'optas::templates']]],
+  ['rosver_320',['rosver',['../classoptas_1_1templates_1_1ROSManager.html#a51a02771c9e18ff2297de255e831b044',1,'optas::templates::ROSManager']]],
+  ['rotx_321',['rotx',['../namespaceoptas_1_1spatialmath.html#a6b7dbd5ac8b2b3ebbbd51056dc9e0fe4',1,'optas::spatialmath']]],
+  ['roty_322',['roty',['../namespaceoptas_1_1spatialmath.html#ae047448768d17c74054107f464fabd4d',1,'optas::spatialmath']]],
+  ['rotz_323',['rotz',['../namespaceoptas_1_1spatialmath.html#a85a1c714ce4c98dd286509fd78dae228',1,'optas::spatialmath']]],
+  ['rpy2r_324',['rpy2r',['../namespaceoptas_1_1spatialmath.html#a49b8be21527c19994f600e9e92bf276b',1,'optas::spatialmath']]],
+  ['rt2tr_325',['rt2tr',['../namespaceoptas_1_1spatialmath.html#a85b740c7e0c96d4392dae31ad44b4fa0',1,'optas::spatialmath']]]
+];
