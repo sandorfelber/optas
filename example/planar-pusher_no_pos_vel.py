@@ -73,7 +73,6 @@ class Planner:
 
         # Setup task models
         state = optas.TaskModel('state', dim=nX, time_derivs=[0], dlim=dlim)
-        state = state
         state_name = state.get_name()
         control = optas.TaskModel('control', dim=nU, time_derivs=[0], T=T-1, symbol='u')
         #rectangle_task_model = optas.TaskModel('rectangle_task_model', rectangle_dim, time_derivs=[0, 1], dlim=dlim)
@@ -196,7 +195,7 @@ class Planner:
 
         # Setup solver
         opt = builder.build()
-        #self.solver = optas.CasADiSolver(opt).setup('ipopt')
+        #self.solver = optas.CasADiSolver(opt).setup('knitro')
         self.solver = optas.ScipyMinimizeSolver(opt).setup('SLSQP')
         print("SQLSP called")
         # For later
@@ -229,7 +228,8 @@ class Planner:
         #print(solution)
         optas.np.set_printoptions(suppress=True, precision=3, linewidth=1000)
         slider_traj = solution['state/x']
-        #print(slider_traj)
+        print("slk", slider_traj.shape)
+        print("slk", type(slider_traj))
         #slider_traj_dx = solution['state/x'] * self.dt                   #'control/u']
         slider_plan = self.solver.interpolate(slider_traj, self.duration)
         #slider_plan_dx = self.solver.interpolate(slider_traj_dx, self.duration)
@@ -265,7 +265,7 @@ class Animate:
         self.endeffector_location_init = optas.np.array([0.4, 0.]) #pginit
         GxS0, GyS0 = 0.0, 0.0
         GxST, GyST = 0.3, 0.6 # 0.45, 0.3
-        self.GthetaS0 = 0.0*optas.np.pi    # GthetaS0
+        self.GthetaS0 = 0.4*optas.np.pi    # GthetaS0
         self.GthetaST = 0.1*optas.np.pi    # GthetaST
         self.rectangle_position_init = [GxS0 - 0.5 * self.planner.Lx, GyS0 - 0.5 * self.planner.Ly]
         self.rectangle_position_goal = [GxST - 0.5 * self.planner.Lx, GyST - 0.5 * self.planner.Ly]
@@ -284,8 +284,8 @@ class Animate:
         self.dX[3][0] = 0
         self.dX[0] = self.dX[0] - self.dX[3]
         self.dX[0][1] = self.dX[0][1] - GxS0
-        print("self.dX1")
-        print(self.dX)
+        #print("self.dX1")
+        #print(self.dX)
         # velocity in y direction: 
         self.dX[3] = np.roll(self.dX[1], 1)
         self.dX[3][0] = 0
@@ -303,10 +303,9 @@ class Animate:
         
         #print(self.dX)
         #self.endeff_trajectory = self.planner.state_to_pose(self.update.state)
-        self.fig, self.ax = plt.subplot_mosaic([['birdseye', 'position'],
-                                                ['birdseye', 'velocity']],
+        self.fig, self.ax = plt.subplot_mosaic([['birdseye'],],
                                                layout='constrained',
-                                               figsize=(10, 5),
+                                               figsize=(5, 5),
         )
 
         self.ax['birdseye'].plot(self.X[0, :], self.X[1, :], '-kx', label='box_center_plan')
@@ -323,25 +322,6 @@ class Animate:
         self.ax['birdseye'].set_title('Birdseye View')
         self.ax['birdseye'].set_xlabel('x')
         self.ax['birdseye'].set_ylabel('y')
-        #print(self.X)
-        self.ax['position'].plot(self.t, self.X[0,:], '-rx', label='plan-x')
-        self.ax['position'].plot(self.t, self.X[1,:], '-bx', label='plan-y')
-        self.ax['position'].set_ylabel('Position')
-        self.ax['position'].set_xlim(0, self.planner.duration)
-
-        axlim = max([abs(l) for l in self.planner.state.dlim[0]])
-        self.ax['position'].set_ylim(-axlim, axlim)
-
-        self.ax['velocity'].plot(self.t, self.dX[0,:], '-rx', label='plan-dx')
-        self.ax['velocity'].plot(self.t, self.dX[1,:], '-bx', label='plan-dy')
-        self.ax['velocity'].axhline(self.planner.state.dlim[1][0], color='red', linestyle='--')
-        self.ax['velocity'].axhline(self.planner.state.dlim[1][1], color='red', linestyle='--', label='limit')
-        self.ax['velocity'].set_ylabel('Velocity')
-        self.ax['velocity'].set_xlabel('Time')
-
-        self.ax['velocity'].set_xlim(0, self.planner.duration)
-        axlim = max([abs(1.5*l) for l in self.planner.state.dlim[1]])
-        self.ax['velocity'].set_ylim(-axlim, axlim)
 
         for a in self.ax.values():
             a.legend(ncol=3, loc='lower right')
@@ -349,22 +329,20 @@ class Animate:
 
         # Animate
         if not animate: return
-        self.pos_line = self.ax['position'].axvline(color='blue', alpha=0.5)
-        self.vel_line = self.ax['velocity'].axvline(color='blue', alpha=0.5)
         self.rectangle_visualisation = plt.Rectangle(xy=self.rectangle_position_init, width=self.planner.Lx, height=self.planner.Ly, angle=yaw2deg(self.GthetaS0), color='black', rotation_point = 'center')
         self.endeffector_visualisation = plt.Circle(self.endeffector_location_init, radius=self.planner.eff_ball_radius, color='blue')
+        #print("SELFT", self.t)
         self.ani = FuncAnimation(self.fig, self.update, frames=self.t, blit=True)
         #animation save as video:
-        f = r"/home/sandorfelber/Desktop/videos/Pusher_Slider_Animation_03_09_Diagonal_Path_2.mp4" 
-        writermp4 = animation.FFMpegWriter(fps=10) 
-        self.ani.save(f, writer=writermp4)
+        #f = r"/home/sandorfelber/Desktop/videos/Pusher_Slider_Animation_03_09_Diagonal_Path_2.mp4" 
+        #writermp4 = animation.FFMpegWriter(fps=10) 
+        #self.ani.save(f, writer=writermp4)
 
     def update(self, frame):
 
         # Update position/velocity indicator line
-        self.pos_line.set_xdata([frame, frame])
-        self.vel_line.set_xdata([frame, frame])
-        
+        #print("SELFX PLAN TYPE", type(self.plan_x))
+        #print("SELFX PLAN SHAPE", (self.plan_x).shape)
         # Update point mass
         state = self.plan_x(frame)
         self.state = state
@@ -381,7 +359,7 @@ class Animate:
         self.ax['birdseye'].add_patch(self.rectangle_visualisation)
         self.ax['birdseye'].add_patch(self.endeffector_visualisation)
 
-        return (self.rectangle_visualisation, self.endeffector_visualisation, self.pos_line, self.vel_line)
+        return (self.rectangle_visualisation, self.endeffector_visualisation)
 
     @staticmethod
     def show():

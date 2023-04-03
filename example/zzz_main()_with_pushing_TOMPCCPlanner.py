@@ -13,9 +13,9 @@ from optas.spatialmath import *
 
 import numpy as np
 import pybullet_api
-from tompccplanner import TOMPCCPlanner
+from example.zzz_tompccplanner import TOMPCCPlanner
 from planner_visualizer import PlannerVisualizer
-from ik import IK
+from example.zzz_ik import IK
 
 def yaw2quat(angle):
     return Quaternion.fromrpy(tr2eul(rotz(angle))).getquat()

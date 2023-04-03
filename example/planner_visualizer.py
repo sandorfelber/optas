@@ -13,8 +13,8 @@ import pybullet_api
 import optas
 from optas.spatialmath import *
 
-from tompccplanner import TOMPCCPlanner
-from ik import IK
+from example.zzz_tompccplanner import TOMPCCPlanner
+from example.zzz_ik import IK
 
 class PlannerVisualizer:
     def __init__(self, dt, Lx, Ly, GpS0, GthetaS0, GpST, GthetaST, planner, animate=True):
